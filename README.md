@@ -85,4 +85,4 @@ The first signup is automatically promoted to `ADMIN`.
 - Live URL: https://team-task-manager-production-7dd5.up.railway.app/
 - GitHub repo: https://github.com/allaboutaryan/team-task-manager
 - README: included
-- Demo video: record 2-5 minutes showing signup, admin project creation, member assignment, task creation, status updates, and dashboard
+- Demo video: https://drive.google.com/file/d/1wYwtj4O7XDm9SGRE1UsEY2BE_XoMQP7r/view?usp=sharing
