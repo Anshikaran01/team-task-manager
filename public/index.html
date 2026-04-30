@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Team Task Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section id="authView" class="auth-layout">
+        <div class="brand-panel">
+          <p class="eyebrow">Team Task Manager</p>
+          <h1>Projects, people, and progress in one focused workspace.</h1>
+          <p>Create project teams, assign tasks, and keep status and overdue work visible for every role.</p>
+        </div>
+        <div class="auth-panel">
+          <div class="tabs">
+            <button class="tab active" data-auth-tab="login">Login</button>
+            <button class="tab" data-auth-tab="signup">Signup</button>
+          </div>
+          <form id="loginForm" class="form">
+            <label>Email<input name="email" type="email" required autocomplete="email" /></label>
+            <label>Password<input name="password" type="password" required autocomplete="current-password" /></label>
+            <button type="submit">Login</button>
+          </form>
+          <form id="signupForm" class="form hidden">
+            <label>Name<input name="name" required autocomplete="name" /></label>
+            <label>Email<input name="email" type="email" required autocomplete="email" /></label>
+            <label>Password<input name="password" type="password" minlength="6" required autocomplete="new-password" /></label>
+            <button type="submit">Create account</button>
+            <p class="hint">The first account is always created as Admin.</p>
+          </form>
+          <p id="authMessage" class="message"></p>
+        </div>
+      </section>
+
+      <section id="appView" class="app-layout hidden">
+        <aside class="sidebar">
+          <div>
+            <p class="eyebrow">Workspace</p>
+            <h2>Task Manager</h2>
+          </div>
+          <nav>
+            <button class="nav active" data-view="dashboard">Dashboard</button>
+            <button class="nav" data-view="projects">Projects</button>
+            <button class="nav" data-view="tasks">Tasks</button>
+          </nav>
+          <div class="profile">
+            <strong id="profileName"></strong>
+            <span id="profileRole"></span>
+            <button id="logoutBtn" class="secondary">Logout</button>
+          </div>
+        </aside>
+
+        <section class="content">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="viewEyebrow">Overview</p>
+              <h1 id="viewTitle">Dashboard</h1>
+            </div>
+            <p id="appMessage" class="message"></p>
+          </header>
+
+          <section id="dashboardView" class="view">
+            <div class="stats">
+              <article><span>Total tasks</span><strong id="totalTasks">0</strong></article>
+              <article><span>To do</span><strong id="todoTasks">0</strong></article>
+              <article><span>In progress</span><strong id="progressTasks">0</strong></article>
+              <article><span>Done</span><strong id="doneTasks">0</strong></article>
+              <article><span>Completion</span><strong id="completionRate">0%</strong></article>
+              <article><span>Assigned to me</span><strong id="assignedTasks">0</strong></article>
+              <article><span>High priority</span><strong id="highPriorityTasks">0</strong></article>
+              <article><span>Overdue</span><strong id="overdueTasks">0</strong></article>
+            </div>
+            <div class="grid two">
+              <div class="panel">
+                <h3>Upcoming work</h3>
+                <div id="recentTasks" class="task-list"></div>
+              </div>
+              <div class="panel">
+                <h3>Overdue focus</h3>
+                <div id="overdueList" class="task-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="projectsView" class="view hidden">
+            <div class="grid two">
+              <form id="projectForm" class="panel admin-only">
+                <h3>Create project</h3>
+                <label>Name<input name="name" required /></label>
+                <label>Description<textarea name="description" rows="4"></textarea></label>
+                <button type="submit">Create project</button>
+              </form>
+              <form id="memberForm" class="panel admin-only">
+                <h3>Add team member</h3>
+                <label>Project<select name="projectId" required></select></label>
+                <label>User<select name="userId" required></select></label>
+                <button type="submit">Add member</button>
+              </form>
+            </div>
+            <div id="projectsList" class="cards"></div>
+          </section>
+
+          <section id="tasksView" class="view hidden">
+            <form id="taskForm" class="panel">
+              <h3>Create task</h3>
+              <div class="grid two">
+                <label>Title<input name="title" required /></label>
+                <label>Project<select name="projectId" required></select></label>
+                <label>Assign to<select name="assigneeId"></select></label>
+                <label>Priority
+                  <select name="priority">
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM" selected>Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </label>
+                <label>Due date<input name="dueDate" type="date" /></label>
+              </div>
+              <label>Description<textarea name="description" rows="3"></textarea></label>
+              <button type="submit">Create task</button>
+            </form>
+            <div class="toolbar">
+              <button class="filter active" data-status="ALL">All</button>
+              <button class="filter" data-status="TODO">To do</button>
+              <button class="filter" data-status="IN_PROGRESS">In progress</button>
+              <button class="filter" data-status="DONE">Done</button>
+            </div>
+            <div class="kanban-board">
+              <section class="kanban-column">
+                <h3>To do <span id="todoCount">0</span></h3>
+                <div id="kanbanTodo" class="kanban-list"></div>
+              </section>
+              <section class="kanban-column">
+                <h3>In progress <span id="progressCount">0</span></h3>
+                <div id="kanbanProgress" class="kanban-list"></div>
+              </section>
+              <section class="kanban-column">
+                <h3>Done <span id="doneCount">0</span></h3>
+                <div id="kanbanDone" class="kanban-list"></div>
+              </section>
+            </div>
+            <div id="tasksList" class="task-list"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
