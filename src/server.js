@@ -15,7 +15,7 @@ const {
   projectSchema,
   memberSchema,
   taskSchema,
-  taskUpdateSchema
+  taskUpdateSchema,
 } = require("./validators");
 
 const app = express();
@@ -32,14 +32,14 @@ function publicUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
   };
 }
 
 async function userCanAccessProject(userId, role, projectId) {
   if (role === "ADMIN") return true;
   const membership = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId } }
+    where: { projectId_userId: { projectId, userId } },
   });
   return Boolean(membership);
 }
@@ -63,8 +63,8 @@ app.post("/api/auth/signup", validate(signupSchema), async (req, res, next) => {
         name,
         email,
         passwordHash,
-        role: userCount === 0 ? "ADMIN" : "MEMBER"
-      }
+        role: userCount === 0 ? "ADMIN" : "MEMBER",
+      },
     });
 
     res.status(201).json({ token: signToken(user), user: publicUser(user) });
@@ -75,8 +75,13 @@ app.post("/api/auth/signup", validate(signupSchema), async (req, res, next) => {
 
 app.post("/api/auth/login", validate(loginSchema), async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { email: req.body.email } });
-    if (!user || !(await bcrypt.compare(req.body.password, user.passwordHash))) {
+    const user = await prisma.user.findUnique({
+      where: { email: req.body.email },
+    });
+    if (
+      !user ||
+      !(await bcrypt.compare(req.body.password, user.passwordHash))
+    ) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
@@ -94,7 +99,7 @@ app.get("/api/users", requireAuth, async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true, role: true }
+      select: { id: true, name: true, email: true, role: true },
     });
     res.json(users);
   } catch (error) {
@@ -113,9 +118,13 @@ app.get("/api/projects", requireAuth, async (req, res, next) => {
       where,
       orderBy: { createdAt: "desc" },
       include: {
-        members: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
-        tasks: true
-      }
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true, role: true } },
+          },
+        },
+        tasks: true,
+      },
     });
 
     res.json(projects);
@@ -124,55 +133,92 @@ app.get("/api/projects", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/api/projects", requireAuth, requireAdmin, validate(projectSchema), async (req, res, next) => {
-  try {
-    const project = await prisma.project.create({
-      data: {
-        name: req.body.name,
-        description: req.body.description || null,
-        members: { create: { userId: req.user.id } }
-      },
-      include: {
-        members: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
-        tasks: true
-      }
-    });
-    res.status(201).json(project);
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.post("/api/projects/:id/members", requireAuth, requireAdmin, validate(memberSchema), async (req, res, next) => {
-  try {
-    const project = await prisma.project.findUnique({ where: { id: req.params.id } });
-    const user = await prisma.user.findUnique({ where: { id: req.body.userId } });
-    if (!project || !user) {
-      return res.status(404).json({ message: "Project or user not found." });
+app.post(
+  "/api/projects",
+  requireAuth,
+  requireAdmin,
+  validate(projectSchema),
+  async (req, res, next) => {
+    try {
+      const project = await prisma.project.create({
+        data: {
+          name: req.body.name,
+          description: req.body.description || null,
+          members: { create: { userId: req.user.id } },
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, role: true },
+              },
+            },
+          },
+          tasks: true,
+        },
+      });
+      res.status(201).json(project);
+    } catch (error) {
+      next(error);
     }
+  },
+);
 
-    await prisma.projectMember.upsert({
-      where: { projectId_userId: { projectId: req.params.id, userId: req.body.userId } },
-      update: {},
-      create: { projectId: req.params.id, userId: req.body.userId }
-    });
+app.post(
+  "/api/projects/:id/members",
+  requireAuth,
+  requireAdmin,
+  validate(memberSchema),
+  async (req, res, next) => {
+    try {
+      const project = await prisma.project.findUnique({
+        where: { id: req.params.id },
+      });
+      const user = await prisma.user.findUnique({
+        where: { id: req.body.userId },
+      });
+      if (!project || !user) {
+        return res.status(404).json({ message: "Project or user not found." });
+      }
 
-    res.status(201).json({ message: "Member added to project." });
-  } catch (error) {
-    next(error);
-  }
-});
+      await prisma.projectMember.upsert({
+        where: {
+          projectId_userId: {
+            projectId: req.params.id,
+            userId: req.body.userId,
+          },
+        },
+        update: {},
+        create: { projectId: req.params.id, userId: req.body.userId },
+      });
 
-app.delete("/api/projects/:projectId/members/:userId", requireAuth, requireAdmin, async (req, res, next) => {
-  try {
-    await prisma.projectMember.delete({
-      where: { projectId_userId: { projectId: req.params.projectId, userId: req.params.userId } }
-    });
-    res.status(204).end();
-  } catch (error) {
-    next(error);
-  }
-});
+      res.status(201).json({ message: "Member added to project." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.delete(
+  "/api/projects/:projectId/members/:userId",
+  requireAuth,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      await prisma.projectMember.delete({
+        where: {
+          projectId_userId: {
+            projectId: req.params.projectId,
+            userId: req.params.userId,
+          },
+        },
+      });
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 app.get("/api/tasks", requireAuth, async (req, res, next) => {
   try {
@@ -182,8 +228,8 @@ app.get("/api/tasks", requireAuth, async (req, res, next) => {
         : {
             OR: [
               { assigneeId: req.user.id },
-              { project: { members: { some: { userId: req.user.id } } } }
-            ]
+              { project: { members: { some: { userId: req.user.id } } } },
+            ],
           };
 
     const tasks = await prisma.task.findMany({
@@ -192,8 +238,8 @@ app.get("/api/tasks", requireAuth, async (req, res, next) => {
       include: {
         project: { select: { id: true, name: true } },
         assignee: { select: { id: true, name: true, email: true } },
-        createdBy: { select: { id: true, name: true, email: true } }
-      }
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
     });
     res.json(tasks);
   } catch (error) {
@@ -201,67 +247,114 @@ app.get("/api/tasks", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/api/tasks", requireAuth, validate(taskSchema), async (req, res, next) => {
-  try {
-    const isAllowed = await userCanAccessProject(req.user.id, req.user.role, req.body.projectId);
-    if (!isAllowed) {
-      return res.status(403).json({ message: "You do not belong to this project." });
-    }
-
-    if (req.user.role !== "ADMIN" && req.body.assigneeId && req.body.assigneeId !== req.user.id) {
-      return res.status(403).json({ message: "Members can only assign tasks to themselves." });
-    }
-
-    const task = await prisma.task.create({
-      data: {
-        title: req.body.title,
-        description: req.body.description || null,
-        priority: req.body.priority || "MEDIUM",
-        projectId: req.body.projectId,
-        assigneeId: req.body.assigneeId || req.user.id,
-        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-        createdById: req.user.id
+app.post(
+  "/api/tasks",
+  requireAuth,
+  validate(taskSchema),
+  async (req, res, next) => {
+    try {
+      const isAllowed = await userCanAccessProject(
+        req.user.id,
+        req.user.role,
+        req.body.projectId,
+      );
+      if (!isAllowed) {
+        return res
+          .status(403)
+          .json({ message: "You do not belong to this project." });
       }
-    });
-    res.status(201).json(task);
-  } catch (error) {
-    next(error);
-  }
-});
 
-app.patch("/api/tasks/:id", requireAuth, validate(taskUpdateSchema), async (req, res, next) => {
-  try {
-    const existing = await prisma.task.findUnique({ where: { id: req.params.id } });
-    if (!existing) {
-      return res.status(404).json({ message: "Task not found." });
-    }
-
-    const isAllowed = await userCanAccessProject(req.user.id, req.user.role, existing.projectId);
-    if (!isAllowed) {
-      return res.status(403).json({ message: "You cannot access this task." });
-    }
-
-    const memberEditFields = ["title", "description", "assigneeId", "dueDate", "priority"];
-    if (req.user.role !== "ADMIN" && memberEditFields.some((field) => field in req.body)) {
-      return res.status(403).json({ message: "Members can only update task status." });
-    }
-
-    const task = await prisma.task.update({
-      where: { id: req.params.id },
-      data: {
-        ...("title" in req.body ? { title: req.body.title } : {}),
-        ...("description" in req.body ? { description: req.body.description || null } : {}),
-        ...("status" in req.body ? { status: req.body.status } : {}),
-        ...("priority" in req.body ? { priority: req.body.priority } : {}),
-        ...("assigneeId" in req.body ? { assigneeId: req.body.assigneeId || null } : {}),
-        ...("dueDate" in req.body ? { dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null } : {})
+      if (
+        req.user.role !== "ADMIN" &&
+        req.body.assigneeId &&
+        req.body.assigneeId !== req.user.id
+      ) {
+        return res
+          .status(403)
+          .json({ message: "Members can only assign tasks to themselves." });
       }
-    });
-    res.json(task);
-  } catch (error) {
-    next(error);
-  }
-});
+
+      const task = await prisma.task.create({
+        data: {
+          title: req.body.title,
+          description: req.body.description || null,
+          priority: req.body.priority || "MEDIUM",
+          projectId: req.body.projectId,
+          assigneeId: req.body.assigneeId || req.user.id,
+          dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+          createdById: req.user.id,
+        },
+      });
+      res.status(201).json(task);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+app.patch(
+  "/api/tasks/:id",
+  requireAuth,
+  validate(taskUpdateSchema),
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.task.findUnique({
+        where: { id: req.params.id },
+      });
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found." });
+      }
+
+      const isAllowed = await userCanAccessProject(
+        req.user.id,
+        req.user.role,
+        existing.projectId,
+      );
+      if (!isAllowed) {
+        return res
+          .status(403)
+          .json({ message: "You cannot access this task." });
+      }
+
+      const memberEditFields = [
+        "title",
+        "description",
+        "assigneeId",
+        "dueDate",
+        "priority",
+      ];
+      if (
+        req.user.role !== "ADMIN" &&
+        memberEditFields.some((field) => field in req.body)
+      ) {
+        return res
+          .status(403)
+          .json({ message: "Members can only update task status." });
+      }
+
+      const task = await prisma.task.update({
+        where: { id: req.params.id },
+        data: {
+          ...("title" in req.body ? { title: req.body.title } : {}),
+          ...("description" in req.body
+            ? { description: req.body.description || null }
+            : {}),
+          ...("status" in req.body ? { status: req.body.status } : {}),
+          ...("priority" in req.body ? { priority: req.body.priority } : {}),
+          ...("assigneeId" in req.body
+            ? { assigneeId: req.body.assigneeId || null }
+            : {}),
+          ...("dueDate" in req.body
+            ? { dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null }
+            : {}),
+        },
+      });
+      res.json(task);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 app.get("/api/dashboard", requireAuth, async (req, res, next) => {
   try {
@@ -272,13 +365,13 @@ app.get("/api/dashboard", requireAuth, async (req, res, next) => {
           : {
               OR: [
                 { assigneeId: req.user.id },
-                { project: { members: { some: { userId: req.user.id } } } }
-              ]
+                { project: { members: { some: { userId: req.user.id } } } },
+              ],
             },
       include: {
         project: { select: { id: true, name: true } },
-        assignee: { select: { id: true, name: true } }
-      }
+        assignee: { select: { id: true, name: true } },
+      },
     });
 
     const now = new Date();
@@ -291,12 +384,17 @@ app.get("/api/dashboard", requireAuth, async (req, res, next) => {
       byStatus[task.status] += 1;
       byPriority[task.priority] += 1;
       if (task.assigneeId === req.user.id) assignedToMe += 1;
-      if (task.dueDate && task.dueDate < now && task.status !== "DONE") overdue += 1;
+      if (task.dueDate && task.dueDate < now && task.status !== "DONE")
+        overdue += 1;
     });
 
-    const completionRate = tasks.length ? Math.round((byStatus.DONE / tasks.length) * 100) : 0;
+    const completionRate = tasks.length
+      ? Math.round((byStatus.DONE / tasks.length) * 100)
+      : 0;
     const overdueTasks = tasks
-      .filter((task) => task.dueDate && task.dueDate < now && task.status !== "DONE")
+      .filter(
+        (task) => task.dueDate && task.dueDate < now && task.status !== "DONE",
+      )
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
       .slice(0, 5);
 
@@ -309,8 +407,12 @@ app.get("/api/dashboard", requireAuth, async (req, res, next) => {
       byPriority,
       overdueTasks,
       recentTasks: tasks
-        .sort((a, b) => new Date(a.dueDate || a.createdAt) - new Date(b.dueDate || b.createdAt))
-        .slice(0, 8)
+        .sort(
+          (a, b) =>
+            new Date(a.dueDate || a.createdAt) -
+            new Date(b.dueDate || b.createdAt),
+        )
+        .slice(0, 8),
     });
   } catch (error) {
     next(error);
@@ -332,6 +434,8 @@ app.use((error, req, res, next) => {
   res.status(500).json({ message: "Something went wrong." });
 });
 
-app.listen(port, () => {
-  console.log(`Team Task Manager running on port ${port}`);
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Team Task Manager running on port ${PORT}`);
 });
