@@ -356,6 +356,9 @@ app.patch(
   },
 );
 
+app.get("/", (req, res) => {
+  res.send("Backend is running successfully");
+});
 app.get("/api/dashboard", requireAuth, async (req, res, next) => {
   try {
     const tasks = await prisma.task.findMany({
